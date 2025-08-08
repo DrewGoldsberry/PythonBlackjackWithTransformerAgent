@@ -26,6 +26,7 @@ class BlackjackEnv:
 
         for player in self.players:
             player.reset_for_round()
+            bet=0
             if isinstance(player, AgentPlayer):
                 bet = player.decide_bet()
             else:
