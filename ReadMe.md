@@ -9,6 +9,11 @@ py main.py
 Change the code to either load the model or create a new model by commenting out how the agent is loaded.
 py train_reinforce.py
 
+# Agent Playing Game
+![Agent Playing Games](https://www.drewgoldsberry.com/videos/blackjack-trained-agent/AgentPlayingBlackjack.mp4)
+
+
 # Basic Article about this repo
 
 [Article: Blackjack Trained Agent by Drew Goldsberry](https://www.drewgoldsberry.com/posts/blackjack-trained-agent)
+
