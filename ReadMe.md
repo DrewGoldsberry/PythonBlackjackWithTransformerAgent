@@ -15,5 +15,5 @@ py train_reinforce.py
 
 # Basic Article about this repo
 
-[Article: Blackjack Trained Agent by Drew Goldsberry](https://www.drewgoldsberry.com/posts/blackjack-trained-agent)
+[Article: Blackjack Trained Agent](https://www.drewgoldsberry.com/posts/blackjack-trained-agent)
 
