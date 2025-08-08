@@ -26,7 +26,11 @@ class BlackjackEnv:
 
         for player in self.players:
             player.reset_for_round()
-            player.place_bet(bet_amount)  # TODO: Make this configurable
+            if isinstance(player, AgentPlayer):
+                bet = player.decide_bet()
+            else:
+                bet = bet_amount
+            player.place_bet(bet)  # TODO: Make this configurable
         if self.players[0].is_finished:
             self.players[0].bankroll == 500
             self.players[0].is_finished = False

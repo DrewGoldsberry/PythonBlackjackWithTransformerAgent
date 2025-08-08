@@ -54,7 +54,7 @@ for episode in range(1, NUM_EPISODES + 1):
     trajectories.reverse()
     for token_seq, action_idx, reward in trajectories:
         token_seq = token_seq.to(DEVICE)
-        logits = agent(token_seq)
+        logits, _ = agent(token_seq)
         log_probs = F.log_softmax(logits, dim=-1)
         log_prob = log_probs[0, action_idx]
         loss += -log_prob * reward

@@ -17,7 +17,7 @@ banlroll = 1000  # Example bankroll
 bet=10  # Example bet amount
 dealer_card = Card(rank="7", suit="Diamonds")
 
-action, probs = agent.act_from_game_state(
+action, probs, bet_fraction = agent.act_from_game_state(
     player_hand=player_hand.cards,
     dealer_card=dealer_card,
     bankroll=banlroll,
@@ -26,7 +26,7 @@ action, probs = agent.act_from_game_state(
 
 
 print("")
-print(f"Action taken: {ACTIONS[action]}, with probabilities: {probs}")
+print(f"Action taken: {ACTIONS[action]}, bet fraction: {bet_fraction}, with probabilities: {probs}")
 print("")
 
 # This code snippet demonstrates how to use the TransformerAgent to make decisions based on the current game state.
