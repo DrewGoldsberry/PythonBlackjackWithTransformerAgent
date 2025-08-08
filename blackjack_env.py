@@ -177,6 +177,7 @@ class BlackjackEnv:
         
         if round_over and isinstance(player, AgentPlayer):
             if player.trajectories:
+                    # We only need to update the last trajectory because in training we apply the rewards to the past trajectories
                     traj = player.trajectories[-1]
                     # Already has reward — optionally update or skip
                     token_seq = None

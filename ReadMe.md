@@ -8,3 +8,7 @@ py main.py
 # How to Train a new Model
 Change the code to either load the model or create a new model by commenting out how the agent is loaded.
 py train_reinforce.py
+
+# Basic Article about this repo
+
+[Article: Blackjack Trained Agent by Drew Goldsberry](https://www.drewgoldsberry.com/posts/blackjack-trained-agent)
