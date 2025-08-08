@@ -16,9 +16,9 @@ DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 BATCH_SIZE = 64
 # === Init ===
 #uncomment to train from scratch
-agent = TransformerAgent().to(DEVICE)
+#agent = TransformerAgent().to(DEVICE)
 #using existing model
-#agent = TransformerAgent.load("./models/blackjack_agent_ep.pt").to(DEVICE)
+agent = TransformerAgent.load("./models/blackjack_agent_ep.pt").to(DEVICE)
 
 optimizer = Adam(agent.parameters(), lr=LR)
 
