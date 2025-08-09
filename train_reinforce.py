@@ -54,10 +54,15 @@ for episode in range(1, NUM_EPISODES + 1):
     trajectories.reverse()
     for token_seq, action_idx, reward in trajectories:
         token_seq = token_seq.to(DEVICE)
-        logits, _ = agent(token_seq)
-        log_probs = F.log_softmax(logits, dim=-1)
-        log_prob = log_probs[0, action_idx]
-        loss += -log_prob * reward
+        logits, bet_pred = agent(token_seq)
+        if action_idx is not None:
+            # Update policy head using selected action
+            log_probs = F.log_softmax(logits, dim=-1)
+            log_prob = log_probs[0, action_idx]
+            loss += -log_prob * reward
+        else:
+            # Update bet head: encourage larger bets for positive rewards and smaller for negative
+            loss += -bet_pred[0] * reward
         total_reward += reward
 
     if total_reward > 0:
