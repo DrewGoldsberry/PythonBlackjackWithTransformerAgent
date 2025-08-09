@@ -46,20 +46,17 @@ class Hand:
         return total
     def get_first_card_value(self):
         """Returns the value of the first card in the hand."""
-        total = 0
-        num_aces = 0
-        for card in self.cards[:1]: # Only consider the first two cards
+        return self.cards[0].value
+    
+    def ace_in_original_hand(self):
+        """Returns True if there is an ace in the starting hand."""
+       
+        for card in self.cards[:2]: # Only consider the first two cards
             if card.is_ace():
-                num_aces += 1
-            total += card.value
-
-        # Convert Aces from 11 to 1 if needed
-        while total > 21 and num_aces > 0:
-            total -= 10
-            num_aces -= 1
-
-        return total
-
+                True
+        
+        return False
+    
     def is_blackjack(self):
         return len(self.cards) == 2 and self.get_values() == 21
 

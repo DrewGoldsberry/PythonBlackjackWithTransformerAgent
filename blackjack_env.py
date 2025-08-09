@@ -6,6 +6,9 @@ from hand import Hand
 from constants import RESHUFFLE_THRESHOLD, AGENT_BANKROLL_TARGET, AGENT_STARTING_BANKROLL
 from agent_player import AgentPlayer
 import math
+from helpers import is_lambda
+from rewards import REWARDS_BINDINGS
+
 class BlackjackEnv:
     def __init__(self, player=None):
         self.deck = Deck()
@@ -32,7 +35,7 @@ class BlackjackEnv:
                 bet = bet_amount
             player.place_bet(bet)  # TODO: Make this configurable
         if self.players[0].is_finished:
-            self.players[0].bankroll = 500
+            self.players[0].bankroll = AGENT_STARTING_BANKROLL
             self.players[0].is_finished = False
         self.dealer.reset_for_round()
 
@@ -67,7 +70,7 @@ class BlackjackEnv:
             for i in range(len(player.hands)):
                 player.active_hand_index = i
                 hand = player.current_hand()
-                if hand.has_stood:
+                if hand.has_stood or hand.is_blackjack() or hand.is_busted() or hand.has_doubled:
                     continue  # Skip if player has already stood
 
                 while True:
@@ -104,7 +107,7 @@ class BlackjackEnv:
     def play_dealer(self):
         hand = self.dealer.current_hand()
         print(f"Dealer cards: {', '.join(str(c) for c in hand.cards)}")
-
+        
         while hand.get_values() < 17:
             card = self.deck.draw()
             hand.add_card(card)
@@ -117,7 +120,6 @@ class BlackjackEnv:
         dealer_val = self.dealer.current_hand().get_values()
         player_val = hand.get_values()
 
-        reward = 0
         
         print (f"{player.name} has {player_val}, Dealer has {dealer_val}")
         round_over=False        
@@ -141,46 +143,27 @@ class BlackjackEnv:
             player.lose_bet(hand)
 
         
-
+        
         if round_over and isinstance(player, AgentPlayer):
-           
-            if not player.current_hand().is_blackjack() and player.current_hand().get_original_delt_values() == 21:
-                reward+= -2
-            
-            if player.current_hand().is_blackjack():
-                reward+= 2
+            reward = 0
+            rules = []
+            for reward_binding in REWARDS_BINDINGS:
+                if reward_binding.bool_function(self, player):
+                    temp_reward = 0
+                    if is_lambda(reward_binding.reward):
+                        temp_reward+=reward_binding.reward(self, player)
+                    else:
+                        temp_reward+=reward_binding.reward
+                    
+                    reward+=temp_reward
+                    rules.append(reward_binding.label + f" (reward: {temp_reward})")
 
-            if player.current_hand().stood_below_17 < 17 and self.dealer.current_hand().get_first_card_value() >= 7:
-                reward+= -1
-
-            if player.current_hand().hit_above_17:
-                reward += -2
-            
-            if player.current_hand().has_doubled and player.current_hand().get_original_delt_values() <= 11 and player.current_hand().get_original_delt_values()>8 and player.current_hand().get_first_card_value() <= 8:
-                reward += 1
-            if player.current_hand().get_values() <=21 and self.dealer.current_hand().get_values() < player.current_hand().get_values():
-                reward += 1
-            if player.current_hand().get_values()> 8 and player.current_hand().get_values() < 11 and self.dealer.current_hand().get_first_card_value() < 8 and not player.current_hand().has_doubled:
-                reward += -1
-
-            if len(player.current_hand().cards) == 2 and self.dealer.current_hand().get_first_card_value() >= 7 and player.current_hand().get_values() < 17:
-                reward += -1
-
-            if player.current_hand().is_winner:
-                bankroll_before_hand = player.bankroll - hand.bet
-                if player.current_hand().is_blackjack():
-                    bankroll_before_hand -= .5 * hand.bet
-            else :
-                bankroll_before_hand = player.bankroll + hand.bet
-
-            eps = 1e-6  # to avoid division by zero
-            if (bankroll_before_hand + eps) > 0:
-                reward += max(-2, min(math.log((player.bankroll + eps) / (bankroll_before_hand + eps)), 2))
-            
-
-                
+            print("")
+            for rule in rules:
+                print(rule)
+            print("")    
             print(f"Reward: {reward} Balance: {player.bankroll} Bet: {hand.bet}")
-
+            
             if player.trajectories:
                     # We only need to update the last trajectory because in training we apply the rewards to the past trajectories
                     traj = player.trajectories[-1]
