@@ -62,7 +62,7 @@ for episode in range(1, NUM_EPISODES + 1):
             loss += -log_prob * reward
         else:
             # Update bet head: encourage larger bets for positive rewards and smaller for negative
-            loss += -bet_pred[0] * reward
+            loss += reward
         total_reward += reward
 
     if total_reward > 0:
@@ -74,10 +74,11 @@ for episode in range(1, NUM_EPISODES + 1):
     optimizer.step()
 
     # 5. Print progress
-    if episode % 50 == 0:
+    if episode % 10 == 0:
         print(f"Episode {episode} | Win Rate: {win_count/50:.2f} | Loss: {loss.item():.4f}")
         win_count = 0
 
     # 6. Save model
     if episode % SAVE_EVERY == 0:
         agent.save(f"models/blackjack_agent_ep.pt")
+        print(f"Model saved at episode {episode}")

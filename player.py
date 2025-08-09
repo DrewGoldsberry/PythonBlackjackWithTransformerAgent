@@ -1,7 +1,7 @@
 # player.py
 
 from hand import Hand
-
+from constants import AGENT_BANKROLL_TARGET
 class Player:
     def __init__(self, name, bankroll=500, is_human=False):
         self.name = name
@@ -28,6 +28,9 @@ class Player:
 
         if self.bankroll == amount:
             print(f"{self.name} has run out of money!")
+            self.is_finished = True
+        if self.bankroll> AGENT_BANKROLL_TARGET:
+            print(f"{self.name} has reached the target bankroll of {AGENT_BANKROLL_TARGET}!")
             self.is_finished = True
 
     def win_bet(self, hand):
