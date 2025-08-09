@@ -54,10 +54,15 @@ for episode in range(1, NUM_EPISODES + 1):
     trajectories.reverse()
     for token_seq, action_idx, reward in trajectories:
         token_seq = token_seq.to(DEVICE)
-        logits, _ = agent(token_seq)
-        log_probs = F.log_softmax(logits, dim=-1)
-        log_prob = log_probs[0, action_idx]
-        loss += -log_prob * reward
+        logits, bet_pred = agent(token_seq)
+        if action_idx is not None:
+            # Update policy head using selected action
+            log_probs = F.log_softmax(logits, dim=-1)
+            log_prob = log_probs[0, action_idx]
+            loss += -log_prob * reward
+        else:
+            # Update bet head: encourage larger bets for positive rewards and smaller for negative
+            loss += reward
         total_reward += reward
 
     if total_reward > 0:
@@ -69,10 +74,11 @@ for episode in range(1, NUM_EPISODES + 1):
     optimizer.step()
 
     # 5. Print progress
-    if episode % 50 == 0:
+    if episode % 10 == 0:
         print(f"Episode {episode} | Win Rate: {win_count/50:.2f} | Loss: {loss.item():.4f}")
         win_count = 0
 
     # 6. Save model
     if episode % SAVE_EVERY == 0:
         agent.save(f"models/blackjack_agent_ep.pt")
+        print(f"Model saved at episode {episode}")

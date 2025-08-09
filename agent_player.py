@@ -42,5 +42,7 @@ class AgentPlayer(Player):
             bet=0,
         )
         bet_fraction = self.agent.predict_bet(token_seq)
+        # Track this bet decision so the bet head can receive feedback
+        self.trajectories.append((token_seq, None))
         bet_amount = max(1, float(bet_fraction * self.bankroll))
         return bet_amount

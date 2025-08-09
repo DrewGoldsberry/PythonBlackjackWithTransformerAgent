@@ -21,6 +21,7 @@ CARD_VALUES = {
     '9': 9, '10': 10, 'J': 10, 'Q': 10, 'K': 10, 'A': 11  # Aces start as 11
 }
 
+AGENT_BANKROLL_TARGET = 4000
 # Gameplay
 NUM_DECKS = 6
 RESHUFFLE_THRESHOLD = 52 * NUM_DECKS // 3  # Shuffle when 1/3 through
