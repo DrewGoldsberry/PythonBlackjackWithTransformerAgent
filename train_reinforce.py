@@ -7,9 +7,11 @@ from agent_player import AgentPlayer
 from blackjack_env import BlackjackEnv
 from torch.optim import Adam
 import os
+
 NUM_EPISODES = 100000
 SAVE_EVERY = 500
-EPSILON = 0.2
+EPSILON_START = 0.2
+EPSILON_END = 0.05
 LR = 1e-4
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 BATCH_SIZE = 128
@@ -27,11 +29,14 @@ elif agent is None:
 optimizer = Adam(agent.parameters(), lr=LR)
 
 win_count = 0
-player = AgentPlayer("Bot", agent=agent)
+player = AgentPlayer("Bot", agent=agent, epsilon=EPSILON_START)
 
 env = BlackjackEnv(player=player)
 
+epsilon_decay = (EPSILON_START - EPSILON_END) / NUM_EPISODES
+
 for episode in range(1, NUM_EPISODES + 1):
+    player.epsilon = max(EPSILON_END, EPSILON_START - (episode - 1) * epsilon_decay)
     env.reset()
     env.play_round()
 

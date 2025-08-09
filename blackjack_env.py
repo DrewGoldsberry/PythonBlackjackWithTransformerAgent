@@ -5,8 +5,6 @@ from player import Player
 from hand import Hand
 from constants import RESHUFFLE_THRESHOLD, AGENT_BANKROLL_TARGET, AGENT_STARTING_BANKROLL
 from agent_player import AgentPlayer
-import math
-from helpers import is_lambda
 from rewards import REWARDS_BINDINGS
 
 class BlackjackEnv:
@@ -148,15 +146,14 @@ class BlackjackEnv:
             reward = 0
             rules = []
             for reward_binding in REWARDS_BINDINGS:
-                if reward_binding.bool_function(self, player):
-                    temp_reward = 0
-                    if is_lambda(reward_binding.reward):
-                        temp_reward+=reward_binding.reward(self, player)
-                    else:
-                        temp_reward+=reward_binding.reward
-                    
-                    reward+=temp_reward
-                    rules.append(reward_binding.label + f" (reward: {temp_reward})")
+                if reward_binding.condition(self, player):
+                    value = (
+                        reward_binding.value(self, player)
+                        if callable(reward_binding.value)
+                        else reward_binding.value
+                    )
+                    reward += value
+                    rules.append(f"{reward_binding.label} (reward: {value})")
 
             print("")
             for rule in rules:
