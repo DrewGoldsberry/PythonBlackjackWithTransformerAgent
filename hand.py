@@ -9,7 +9,9 @@ class Hand:
         self.can_double = True  # Track if doubling down is allowed
         self.hit_above_17 = False  # Track if hit above 17
         self.stood_below_17 = False  # Track if stood below 17
-
+        self.is_winner = False  # Track if this hand is a winner
+        self.round_over = False  # Track if the round is over
+        self.has_stood = False  # Track if the player has stood
     def add_card(self, card):
         self.cards.append(card)
 

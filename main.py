@@ -9,8 +9,10 @@ from player import Player
 if __name__ == "__main__":
    #defaults to TransormerAgent being used to play the game
    agent = TransformerAgent.load("./models/blackjack_agent_ep.pt")
+   
+   #run the game with the agent
    player = AgentPlayer("Jimmy", agent)
-   ui = BlackjackUI(agent=player, is_agent=True)
+   ui = BlackjackUI(player=player)
 
    #uncomment to play as a human
    #player= Player("Human")

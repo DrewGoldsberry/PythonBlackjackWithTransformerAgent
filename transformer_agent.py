@@ -5,13 +5,14 @@ import torch.nn as nn
 import torch.nn.functional as F
 import os
 from tokenizer import tokenize_state
+from torch.distributions import Beta   # NEW
 
 class TransformerAgent(nn.Module):
     def __init__(self, 
                  vocab_size=256,
                  d_model=128,
                  nhead=4,
-                 num_layers=2,
+                 num_layers=5,
                  max_seq_len=20,
                  num_actions=4):
         super().__init__()
@@ -31,29 +32,34 @@ class TransformerAgent(nn.Module):
             nn.Linear(d_model, num_actions)
         )
 
-        # Head for predicting bet size as a fraction between 0 and 1
-        self.bet_head = nn.Sequential(
+        # ==== NEW: Beta policy for continuous bet in [0, 1] ====
+        self.bet_trunk = nn.Sequential(
             nn.Linear(d_model, d_model),
             nn.ReLU(),
-            nn.Linear(d_model, 1),
-            nn.Sigmoid()
         )
+        self.bet_alpha = nn.Linear(d_model, 1)
+        self.bet_beta  = nn.Linear(d_model, 1)
+        # =======================================================
 
     def forward(self, token_seq):
         seq_len = token_seq.size(1)
         positions = torch.arange(0, seq_len, device=token_seq.device).unsqueeze(0)
         x = self.token_embedding(token_seq) + self.pos_embedding(positions)
         x = self.transformer(x)
-        x = x[:, -1]  # Use the last token
+        x = x[:, -1]  # Use the last token as state summary
+
         action_logits = self.policy_head(x)
-        bet = self.bet_head(x).squeeze(-1)
-        return action_logits, bet
+
+        # ---- NEW: produce Beta(α, β) parameters (>1 to avoid extreme spikes) ----
+        h = self.bet_trunk(x)
+        alpha = F.softplus(self.bet_alpha(h)) + 1.0
+        beta  = F.softplus(self.bet_beta(h))  + 1.0
+        # -------------------------------------------------------------------------
+
+        return action_logits, (alpha.squeeze(-1), beta.squeeze(-1))
 
     def act(self, token_seq, epsilon=0.0):
-        """
-        Select an action based on the output logits. Epsilon controls exploration.
-        """
-        logits, bet = self.forward(token_seq)
+        logits, (alpha, beta) = self.forward(token_seq)
         probs = F.softmax(logits, dim=-1)
 
         if torch.rand(1).item() < epsilon:
@@ -61,7 +67,33 @@ class TransformerAgent(nn.Module):
         else:
             action = torch.multinomial(probs, num_samples=1)
 
-        return action.item(), probs[0], bet.item()
+        # For legacy compatibility, return a bet *mean* here
+        bet_mean = (alpha / (alpha + beta)).detach().item()
+        return action.item(), probs[0], bet_mean
+
+    # === NEW: sampling API used by AgentPlayer for training ===
+    def sample_bet(self, token_seq, training=True):
+        with torch.set_grad_enabled(training):
+            _, (alpha, beta) = self.forward(token_seq)
+            dist = Beta(alpha, beta)
+            if training:
+                # Sample with reparameterization-ish gradient support
+                b = dist.rsample() if hasattr(dist, "rsample") else dist.sample()
+            else:
+                # Greedy = mean of Beta
+                b = alpha / (alpha + beta)
+
+            # Clamp to [0,1] just in case of numeric weirdness
+            b = b.clamp(0.0, 1.0)
+            log_prob = dist.log_prob(b)
+            return b.squeeze(0), log_prob.squeeze(0)   # scalars
+
+    def predict_bet(self, token_seq):
+        """Return the mean bet fraction (0-1) given a tokenized state; no grad."""
+        with torch.no_grad():
+            _, (alpha, beta) = self.forward(token_seq)
+            b = alpha / (alpha + beta)
+            return b.squeeze(0).item()
 
     def save(self, path):
         os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -83,29 +115,19 @@ class TransformerAgent(nn.Module):
         checkpoint = torch.load(path, map_location=device)
         config = checkpoint['config']
         model = cls(**config)
-        # Allow loading models that might not have the bet head yet
+        # strict=False allows loading older checkpoints without the Beta head
         model.load_state_dict(checkpoint['model_state_dict'], strict=False)
         model.to(device)
         print(f"Agent loaded from {path}")
         return model
-    
-    def act_from_game_state(self, player_hand, dealer_card, bankroll, bet, epsilon=0.0):
-        """
-        Full game-state-based act() method that uses the tokenizer.
-        """
-        token_seq = tokenize_state(player_hand, dealer_card, bankroll, bet)
-        logits, bet_fraction = self.forward(token_seq)
-        probs = F.softmax(logits, dim=-1)
 
+    def act_from_game_state(self, player_hand, dealer_card, bankroll, bet, epsilon=0.0):
+        token_seq = tokenize_state(player_hand, dealer_card, bankroll, bet)
+        logits, (alpha, beta) = self.forward(token_seq)
+        probs = F.softmax(logits, dim=-1)
         if torch.rand(1).item() < epsilon:
             action = torch.randint(0, self.num_actions, (1,))
         else:
             action = torch.multinomial(probs, num_samples=1)
-
-        return action.item(), probs[0].detach(), bet_fraction.item()
-
-    def predict_bet(self, token_seq):
-        """Return a bet fraction (0-1) given a tokenized state."""
-        with torch.no_grad():
-            action, prob, bet = self.act(token_seq)
-            return bet
+        bet_mean = (alpha / (alpha + beta)).item()
+        return action.item(), probs[0].detach(), bet_mean

@@ -34,7 +34,10 @@ class Player:
             self.is_finished = True
 
     def win_bet(self, hand):
-        self.bankroll += 2 * hand.bet
+        if self.current_hand().is_blackjack():
+            self.bankroll += float(1.5 * hand.bet) + hand.bet
+        else:    
+            self.bankroll += 2 * hand.bet
 
     def draw_bet(self, hand):
         self.bankroll += hand.bet
