@@ -33,7 +33,7 @@ class BlackjackEnv:
                 bet = bet_amount
             player.place_bet(bet)  # TODO: Make this configurable
         if self.players[0].is_finished:
-            self.players[0].bankroll == 500
+            self.players[0].bankroll = 500
             self.players[0].is_finished = False
         self.dealer.reset_for_round()
 
@@ -152,14 +152,19 @@ class BlackjackEnv:
             
             if hand.get_values() <= 11:
                 reward += -5
+            if self.players[0].is_finished:
+                reward += -10
 
+            reward+= player.bankroll/100 * 2
+            if hand.bet == 0:
+                reward -= 5
             if hand.get_original_delt_values() >11 and hand.has_doubled:
                 reward -= 5
             if hand.get_original_delt_values() <16 and not hand.has_doubled and len(hand.cards) > 2  and self.dealer.current_hand().get_first_card_value() >= 7:
                 reward +=  5
             if hand.stood_below_17 and self.dealer.current_hand().get_first_card_value() < 7:
                 reward += 5
-            print(f"Reward for {player.name} with hand {hand.get_values()}: {reward}")
+            print(f"Reward: {reward} Balance: {player.bankroll} Bet: {hand.bet}")
         
         print (f"{player.name} has {player_val}, Dealer has {dealer_val}")
         round_over=False        

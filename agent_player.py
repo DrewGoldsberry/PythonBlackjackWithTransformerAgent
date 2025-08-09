@@ -42,5 +42,5 @@ class AgentPlayer(Player):
             bet=0,
         )
         bet_fraction = self.agent.predict_bet(token_seq)
-        bet_amount = max(1, int(bet_fraction * self.bankroll))
+        bet_amount = max(1, float(bet_fraction * self.bankroll))
         return bet_amount

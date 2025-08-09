@@ -107,5 +107,5 @@ class TransformerAgent(nn.Module):
     def predict_bet(self, token_seq):
         """Return a bet fraction (0-1) given a tokenized state."""
         with torch.no_grad():
-            _, bet = self.forward(token_seq)
-        return bet.item()
+            action, prob, bet = self.act(token_seq)
+            return bet
