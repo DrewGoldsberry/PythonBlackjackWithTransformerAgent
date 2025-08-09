@@ -90,10 +90,9 @@ class TransformerAgent(nn.Module):
 
     def predict_bet(self, token_seq):
         """Return the mean bet fraction (0-1) given a tokenized state; no grad."""
-        with torch.no_grad():
-            _, (alpha, beta) = self.forward(token_seq)
-            b = alpha / (alpha + beta)
-            return b.squeeze(0).item()
+        _, (alpha, beta) = self.forward(token_seq)
+        b = alpha / (alpha + beta)
+        return b.squeeze(0).item()
 
     def save(self, path):
         os.makedirs(os.path.dirname(path), exist_ok=True)

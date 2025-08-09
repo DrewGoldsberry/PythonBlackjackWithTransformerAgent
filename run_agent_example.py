@@ -2,6 +2,7 @@ from transformer_agent import TransformerAgent
 from hand import Hand
 from card import Card
 from constants import ACTIONS
+from tokenizer import tokenize_state
 print("")
 
 print("Loading agent...")
@@ -13,17 +14,11 @@ print("Agent loaded successfully.")
 player_hand = Hand()
 player_hand.add_card(card=Card(rank="6", suit="Hearts"))
 player_hand.add_card(card=Card(rank="4", suit="Hearts"))
-banlroll = 1000  # Example bankroll
+bankroll = 1000  # Example bankroll
 bet=10  # Example bet amount
 dealer_card = Card(rank="7", suit="Diamonds")
-
-action, probs, bet_fraction = agent.act_from_game_state(
-    player_hand=player_hand.cards,
-    dealer_card=dealer_card,
-    bankroll=banlroll,
-    bet=bet,
-)
-
+token_seq = tokenize_state(player_hand.cards, dealer_card, bankroll, bet)
+action, probs, bet_fraction = agent.act(token_seq)
 
 print("")
 print(f"Action taken: {ACTIONS[action]}, bet fraction: {bet_fraction}, with probabilities: {probs}")
