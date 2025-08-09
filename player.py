@@ -22,6 +22,12 @@ class Player:
             self.current_hand().bet = amount
             self.bankroll -= amount
         else:
+            self.current_hand().bet = self.bankroll
+            self.bankroll -= self.bankroll
+            amount = self.bankroll
+
+        if self.bankroll == amount:
+            print(f"{self.name} has run out of money!")
             self.is_finished = True
 
     def win_bet(self, hand):

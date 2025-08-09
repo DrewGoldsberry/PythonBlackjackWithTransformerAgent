@@ -31,19 +31,29 @@ class TransformerAgent(nn.Module):
             nn.Linear(d_model, num_actions)
         )
 
+        # Head for predicting bet size as a fraction between 0 and 1
+        self.bet_head = nn.Sequential(
+            nn.Linear(d_model, d_model),
+            nn.ReLU(),
+            nn.Linear(d_model, 1),
+            nn.Sigmoid()
+        )
+
     def forward(self, token_seq):
         seq_len = token_seq.size(1)
         positions = torch.arange(0, seq_len, device=token_seq.device).unsqueeze(0)
         x = self.token_embedding(token_seq) + self.pos_embedding(positions)
         x = self.transformer(x)
         x = x[:, -1]  # Use the last token
-        return self.policy_head(x)
+        action_logits = self.policy_head(x)
+        bet = self.bet_head(x).squeeze(-1)
+        return action_logits, bet
 
     def act(self, token_seq, epsilon=0.0):
         """
         Select an action based on the output logits. Epsilon controls exploration.
         """
-        logits = self.forward(token_seq)
+        logits, bet = self.forward(token_seq)
         probs = F.softmax(logits, dim=-1)
 
         if torch.rand(1).item() < epsilon:
@@ -51,7 +61,7 @@ class TransformerAgent(nn.Module):
         else:
             action = torch.multinomial(probs, num_samples=1)
 
-        return action.item(), probs[0]
+        return action.item(), probs[0], bet.item()
 
     def save(self, path):
         os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -73,7 +83,8 @@ class TransformerAgent(nn.Module):
         checkpoint = torch.load(path, map_location=device)
         config = checkpoint['config']
         model = cls(**config)
-        model.load_state_dict(checkpoint['model_state_dict'])
+        # Allow loading models that might not have the bet head yet
+        model.load_state_dict(checkpoint['model_state_dict'], strict=False)
         model.to(device)
         print(f"Agent loaded from {path}")
         return model
@@ -83,7 +94,7 @@ class TransformerAgent(nn.Module):
         Full game-state-based act() method that uses the tokenizer.
         """
         token_seq = tokenize_state(player_hand, dealer_card, bankroll, bet)
-        logits = self.forward(token_seq)
+        logits, bet_fraction = self.forward(token_seq)
         probs = F.softmax(logits, dim=-1)
 
         if torch.rand(1).item() < epsilon:
@@ -91,4 +102,10 @@ class TransformerAgent(nn.Module):
         else:
             action = torch.multinomial(probs, num_samples=1)
 
-        return action.item(), probs[0].detach()
+        return action.item(), probs[0].detach(), bet_fraction.item()
+
+    def predict_bet(self, token_seq):
+        """Return a bet fraction (0-1) given a tokenized state."""
+        with torch.no_grad():
+            action, prob, bet = self.act(token_seq)
+            return bet
