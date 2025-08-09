@@ -1,9 +1,9 @@
 # player.py
 
 from hand import Hand
-from constants import AGENT_BANKROLL_TARGET
+from constants import AGENT_BANKROLL_TARGET, AGENT_STARTING_BANKROLL
 class Player:
-    def __init__(self, name, bankroll=500, is_human=False):
+    def __init__(self, name, bankroll=AGENT_STARTING_BANKROLL, is_human=False):
         self.name = name
         self.bankroll = bankroll
         self.hands = [Hand()]
