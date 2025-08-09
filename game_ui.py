@@ -27,13 +27,13 @@ class Button:
        
 
 class BlackjackUI:
-    def __init__(self, agent=None, is_agent=False):
+    def __init__(self, player=None):
         pygame.init()
         self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
         pygame.display.set_caption("Blackjack")
         self.clock = pygame.time.Clock()
         self.font = pygame.font.SysFont('arial', 24)
-        self.env = BlackjackEnv(1, agent, is_agent)
+        self.env = BlackjackEnv(player)
         self.env.reset()
         self.running = True
         self.buttons = []
@@ -43,8 +43,7 @@ class BlackjackUI:
         self.bet_input_active = False
         self.bet_input_text = "10"
         self.bet_input_font = pygame.font.SysFont('arial', 24)
-        self.is_agent = is_agent
-        self.agent = agent
+        self.player = player
         self.last_action_time = time.time()
         self.round_end_time = None
     def build_buttons(self):
@@ -85,11 +84,11 @@ class BlackjackUI:
 
 
             self.render()
-            if not self.round_over and isinstance(self.agent, AgentPlayer):
+            if not self.round_over and isinstance(self.player, AgentPlayer):
                 now = time.time()
                 if now - self.last_action_time >= 4.0:
                     self.agent_act()
-            if self.round_over and isinstance(self.agent, AgentPlayer):
+            if self.round_over and isinstance(self.player, AgentPlayer):
                 if self.round_end_time and (time.time() - self.round_end_time >= 3):
                     self.next_round()
                     self.round_end_time = None 
@@ -118,7 +117,7 @@ class BlackjackUI:
             msg_surface = self.font.render(self.message, True, YELLOW)
             self.screen.blit(msg_surface, (SCREEN_WIDTH // 2 - msg_surface.get_width() // 2, SCREEN_HEIGHT - 60))
         
-        if isinstance(self.agent, AgentPlayer):
+        if isinstance(self.player, AgentPlayer):
             pass  # don't draw hit/stand/etc.
         else:
             for button in self.buttons:
@@ -226,7 +225,7 @@ class BlackjackUI:
             self.update_button_states()
 
     def agent_act(self):
-        hand = self.agent.current_hand()
+        hand = self.player.current_hand()
         dealer_card = self.env.dealer.current_hand().cards[0]
 
         if hand.is_blackjack() or hand.is_busted():
@@ -237,7 +236,7 @@ class BlackjackUI:
             self.round_end_time = time.time()
             return
 
-        action = self.agent.decide_action(dealer_card)
+        action = self.player.decide_action(dealer_card)
 
         if action == "hit":
             card = self.env.deck.draw()
@@ -260,8 +259,8 @@ class BlackjackUI:
 
 
         elif action == "double":
-            if self.agent.bankroll >= hand.bet:
-                self.agent.double_down()
+            if self.player.bankroll >= hand.bet:
+                self.player.double_down()
                 card = self.env.deck.draw()
                 self.env.deck.discard(card)
                 hand.add_card(card)
@@ -272,7 +271,7 @@ class BlackjackUI:
 
         elif action == "split":
             if hand.can_split():
-                self.agent.split_hand()
+                self.player.split_hand()
         if self.round_over:
             self.round_end_time = time.time()
 

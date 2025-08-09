@@ -3,20 +3,19 @@
 from deck import Deck
 from player import Player
 from hand import Hand
-from constants import RESHUFFLE_THRESHOLD
+from constants import RESHUFFLE_THRESHOLD, AGENT_BANKROLL_TARGET, AGENT_STARTING_BANKROLL
 from agent_player import AgentPlayer
+import math
 class BlackjackEnv:
-    def __init__(self, num_players=1, agent=None, use_agent=False):
+    def __init__(self, player=None):
         self.deck = Deck()
-        self.players = [Player(f"Player {i+1}") for i in range(num_players)]
         self.dealer = Player("Dealer")
-        self.num_players = num_players
         self.shuffle_cards_next_reset = False
-        self.agent = agent
-        if use_agent:
-            self.players = [agent]
-        else:
+        
+        if player is None:
             self.players = [Player("Human")]
+        else:
+            self.players = [player]
 
     def reset(self, bet_amount=10):
         print("\n===== New Round =====")
@@ -68,11 +67,10 @@ class BlackjackEnv:
             for i in range(len(player.hands)):
                 player.active_hand_index = i
                 hand = player.current_hand()
+                if hand.has_stood:
+                    continue  # Skip if player has already stood
 
                 while True:
-                    if hand.is_blackjack() or hand.is_busted():
-                        break
-
                     action = player.decide_action(self.dealer.current_hand().cards[0])
                     if action == "hit":
                         if hand.get_values() >= 17:
@@ -85,6 +83,7 @@ class BlackjackEnv:
                     elif action == "stand":
                         print(f'User stands')
                         hand.stood_below_17 = True if hand.get_values() < 17 else False
+                        hand.has_stood = True
                         break
                     elif action == "double" and hand.can_double:
                         if player.bankroll >= hand.bet:
@@ -97,6 +96,7 @@ class BlackjackEnv:
                         if hand.can_split():
                             print("user split")
                             player.split_hand()
+                            player.current_hand().cards.append(self.deck.draw())
                             
         else:
         # Human players play manually through the UI
@@ -118,53 +118,6 @@ class BlackjackEnv:
         player_val = hand.get_values()
 
         reward = 0
-        if isinstance(player, AgentPlayer):
-            if hand.is_busted():
-                reward = -1
-            elif dealer_val > 21 or player_val > dealer_val:
-                reward = 6
-            elif player_val == dealer_val:
-                reward = 0
-            else:
-                reward = -1
-            if hand.has_doubled and hand.is_busted():
-                reward += -5
-            if (hand.get_original_delt_values()>= 17 and hand.is_busted()):
-                reward += -5
-            
-            if (hand.get_original_delt_values() > 11 and hand.has_doubled):
-                reward += -5
-            elif hand.get_original_delt_values() > 8 and hand.has_doubled and self.dealer.current_hand().get_first_card_value() < 8:
-                reward += 5
-            
-            if hand.get_original_delt_values() >=17 and len(hand.cards) == 2:
-                reward += 5
-            if self.dealer.current_hand().get_first_card_value()< 7 and hand.is_busted():
-                reward = -5
-            if hand.get_original_delt_values() < 16 and len(hand.cards) > 2 and self.dealer.current_hand().get_first_card_value() >= 7:
-                reward += 5
-            if hand.get_original_delt_values() < 16 and len(hand.cards) == 2 and self.dealer.current_hand().get_first_card_value() >= 7: 
-                reward += -5   
-            if hand.get_original_delt_values() < 16 and len(hand.cards)== 2 and self.dealer.current_hand().get_first_card_value()<= 7:
-                reward += -10
-            if hand.hit_above_17:
-                reward += -5
-            
-            if hand.get_values() <= 11:
-                reward += -5
-            if self.players[0].is_finished:
-                reward += -10
-
-            reward+= player.bankroll/100 * 2
-            if hand.bet == 0:
-                reward -= 5
-            if hand.get_original_delt_values() >11 and hand.has_doubled:
-                reward -= 5
-            if hand.get_original_delt_values() <16 and not hand.has_doubled and len(hand.cards) > 2  and self.dealer.current_hand().get_first_card_value() >= 7:
-                reward +=  5
-            if hand.stood_below_17 and self.dealer.current_hand().get_first_card_value() < 7:
-                reward += 5
-            print(f"Reward: {reward} Balance: {player.bankroll} Bet: {hand.bet}")
         
         print (f"{player.name} has {player_val}, Dealer has {dealer_val}")
         round_over=False        
@@ -176,16 +129,58 @@ class BlackjackEnv:
             print(f"{player.name} wins and gains {2 * hand.bet}")
             round_over= True
             player.win_bet(hand)
+            player.current_hand().is_winner = True
         elif player_val == dealer_val:
             print(f"{player.name} pushes and gets back {hand.bet}")
             round_over= True
             player.draw_bet(hand)
+            player.current_hand().is_winner = True
         else:
             print(f"{player.name} loses bet of {hand.bet}")
             round_over= True
             player.lose_bet(hand)
+
         
+
         if round_over and isinstance(player, AgentPlayer):
+           
+            if not player.current_hand().is_blackjack() and player.current_hand().get_original_delt_values() == 21:
+                reward+= -2
+            
+            if player.current_hand().is_blackjack():
+                reward+= 2
+
+            if player.current_hand().stood_below_17 < 17 and self.dealer.current_hand().get_first_card_value() >= 7:
+                reward+= -1
+
+            if player.current_hand().hit_above_17:
+                reward += -2
+            
+            if player.current_hand().has_doubled and player.current_hand().get_original_delt_values() <= 11 and player.current_hand().get_original_delt_values()>8 and player.current_hand().get_first_card_value() <= 8:
+                reward += 1
+            if player.current_hand().get_values() <=21 and self.dealer.current_hand().get_values() < player.current_hand().get_values():
+                reward += 1
+            if player.current_hand().get_values()> 8 and player.current_hand().get_values() < 11 and self.dealer.current_hand().get_first_card_value() < 8 and not player.current_hand().has_doubled:
+                reward += -1
+
+            if len(player.current_hand().cards) == 2 and self.dealer.current_hand().get_first_card_value() >= 7 and player.current_hand().get_values() < 17:
+                reward += -1
+
+            if player.current_hand().is_winner:
+                bankroll_before_hand = player.bankroll - hand.bet
+                if player.current_hand().is_blackjack():
+                    bankroll_before_hand -= .5 * hand.bet
+            else :
+                bankroll_before_hand = player.bankroll + hand.bet
+
+            eps = 1e-6  # to avoid division by zero
+            if (bankroll_before_hand + eps) > 0:
+                reward += max(-2, min(math.log((player.bankroll + eps) / (bankroll_before_hand + eps)), 2))
+            
+
+                
+            print(f"Reward: {reward} Balance: {player.bankroll} Bet: {hand.bet}")
+
             if player.trajectories:
                     # We only need to update the last trajectory because in training we apply the rewards to the past trajectories
                     traj = player.trajectories[-1]
