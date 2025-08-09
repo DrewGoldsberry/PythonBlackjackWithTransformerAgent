@@ -25,10 +25,22 @@ class AgentPlayer(Player):
             bankroll=self.bankroll,
             bet=hand.bet
         )
-        action_idx, probs = self.agent.act(token_seq, epsilon=self.epsilon)
+        action_idx, probs, _ = self.agent.act(token_seq, epsilon=self.epsilon)
         action = ACTIONS[action_idx]
 
         # Save for training
         self.trajectories.append((token_seq, action_idx))
 
         return action
+
+    def decide_bet(self):
+        """Use the agent to decide a bet amount based on current bankroll."""
+        token_seq = tokenize_state(
+            player_hand=[],
+            dealer_card=None,
+            bankroll=self.bankroll,
+            bet=0,
+        )
+        bet_fraction = self.agent.predict_bet(token_seq)
+        bet_amount = max(1, float(bet_fraction * self.bankroll))
+        return bet_amount
