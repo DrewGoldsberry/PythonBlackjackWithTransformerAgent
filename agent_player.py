@@ -8,7 +8,7 @@ import torch
 ACTIONS = ["hit", "stand", "double", "split"]
 
 class AgentPlayer(Player):
-    def __init__(self, name, agent:TransformerAgent, epsilon=0.1):
+    def __init__(self, name, agent:TransformerAgent, epsilon=0.05,is_training=True):
         super().__init__(name)
         self.agent = agent
         self.epsilon = epsilon

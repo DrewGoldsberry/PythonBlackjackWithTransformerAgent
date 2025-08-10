@@ -11,7 +11,7 @@ if __name__ == "__main__":
    agent = TransformerAgent.load("./models/blackjack_agent_ep.pt")
    
    #run the game with the agent
-   player = AgentPlayer("Jimmy", agent)
+   player = AgentPlayer("Jimmy", agent, epsilon=0, is_training=False)
    ui = BlackjackUI(player=player)
 
    #uncomment to play as a human

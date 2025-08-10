@@ -46,6 +46,7 @@ class BlackjackUI:
         self.player = player
         self.last_action_time = time.time()
         self.round_end_time = None
+        self.action_loop_count = 0
     def build_buttons(self):
         spacing = 120
         start_x = SCREEN_WIDTH // 2 - 2 * spacing
@@ -175,6 +176,7 @@ class BlackjackUI:
     def double(self):
         print("DOUBLE")
         if not self.round_over:
+            
             self.round_over = True
             player = self.env.players[0]
             hand = player.current_hand()
@@ -225,19 +227,19 @@ class BlackjackUI:
             self.update_button_states()
 
     def agent_act(self):
+        self.action_loop_count+=1
         hand = self.player.current_hand()
         dealer_card = self.env.dealer.current_hand().cards[0]
-
-        if hand.is_blackjack() or hand.is_busted():
+        if hand.is_blackjack() or hand.is_busted() or self.action_loop_count>5:
             self.round_over = True
-            self.env.play_round(skip_dealer=False)
+            self.action_loop_count = 0
+            self.env.play_round()
             self.set_end_round_message()
             self.update_button_states()
             self.round_end_time = time.time()
             return
 
         action = self.player.decide_action(dealer_card)
-
         if action == "hit":
             card = self.env.deck.draw()
             self.env.deck.discard(card)
@@ -246,12 +248,14 @@ class BlackjackUI:
 
             if hand.is_busted():
                 self.round_over = True
+                self.action_loop_count = 0
                 self.env.play_round()
                 self.set_end_round_message()
                 self.update_button_states()
 
         elif action == "stand":
             self.round_over = True
+            self.action_loop_count = 0
             self.env.play_round()
             self.set_end_round_message()
             self.update_button_states()
@@ -265,9 +269,12 @@ class BlackjackUI:
                 self.env.deck.discard(card)
                 hand.add_card(card)
                 self.round_over = True
+                self.action_loop_count = 0
                 self.env.play_round()
                 self.set_end_round_message()
                 self.update_button_states()
+            
+            
 
         elif action == "split":
             if hand.can_split():

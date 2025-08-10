@@ -72,8 +72,9 @@ class BlackjackEnv:
                 hand = player.current_hand()
                 if hand.has_stood or hand.is_blackjack() or hand.is_busted() or hand.has_doubled:
                     continue  # Skip if player has already stood
-
+                looping_without_ending=0       
                 while True:
+                    looping_without_ending+=1
                     action = player.decide_action(self.dealer.current_hand().cards[0])
                     if action == "hit":
                         if hand.get_values() >= 17:
@@ -82,7 +83,7 @@ class BlackjackEnv:
                         print(f'User hit for another Card {card}')
                         hand.add_card(card)
                         hand.can_double = False  # Can't double after hitting
-
+                        looping_without_ending = 0
                     elif action == "stand":
                         print(f'User stands')
                         hand.stood_below_17 = True if hand.get_values() < 17 else False
@@ -94,12 +95,17 @@ class BlackjackEnv:
                             card = self.deck.draw()
                             print(f'User double downed for another Card {card}')
                             hand.add_card(card)
+                            looping_without_ending=0
                             break
                     elif action == "split":
                         if hand.can_split():
                             print("user split")
                             player.split_hand()
                             player.current_hand().cards.append(self.deck.draw())
+                            looping_without_ending=0
+                    if looping_without_ending>5:
+                        hand.has_stood = True
+                        break
                             
         else:
         # Human players play manually through the UI
