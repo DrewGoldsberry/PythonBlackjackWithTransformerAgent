@@ -7,34 +7,32 @@ from agent_player import AgentPlayer
 from blackjack_env import BlackjackEnv
 from torch.optim import Adam
 import os
-NUM_EPISODES = 100000
-SAVE_EVERY = 500
-EPSILON = 0.2
+NUM_EPISODES = 10000
+CHANGE_EPSILON_EVERY = 20
+EPSILON_START = 1
+EPSILON_END = 0.001
 LR = 1e-4
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-BATCH_SIZE = 128
+BATCH_SIZE = 256
 agent = None
 MODEL_PATH = "./models/blackjack_agent_ep.pt"
 
-#agent = TransformerAgent().to(DEVICE)
-if (os.path.exists(MODEL_PATH) and agent is None):
-    #using existing model if available
-    agent = TransformerAgent.load(MODEL_PATH).to(DEVICE)
-elif agent is None:
-    agent = TransformerAgent().to(DEVICE)
+agent = TransformerAgent().to(DEVICE)
 
 
 optimizer = Adam(agent.parameters(), lr=LR)
 
 win_count = 0
-player = AgentPlayer("Bot", agent=agent)
+player = AgentPlayer("Bot", agent=agent, epsilon=EPSILON_START, is_training=True)
 
 env = BlackjackEnv(player=player)
 
 for episode in range(1, NUM_EPISODES + 1):
+    if episode % CHANGE_EPSILON_EVERY == 0:
+        player.epsilon = max(EPSILON_END, player.epsilon * 0.989)  # Decay epsilon
     env.reset()
     env.play_round()
-
+    print(f"Episode {episode} | Epsilon: {player.epsilon:.4f}")
     # Pull and reverse for reward backfill
     traj = list(player.trajectories)
     traj.reverse()
@@ -121,7 +119,7 @@ for episode in range(1, NUM_EPISODES + 1):
             win_count += 1
 
         
-        print(f"Episode {episode} | Win Rate: {win_count:.2f} | Loss: {loss.item():.4f}")
+        print(f"Episode {episode} | Win Rate: {win_count:.2f} | Loss: {loss.item():.4f} | Epsilon: {player.epsilon:.4f}")
         win_count = 0
         agent.save(f"models/blackjack_agent_ep.pt")
         print(f"Model saved at episode {episode}")
