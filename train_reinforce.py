@@ -8,9 +8,9 @@ from blackjack_env import BlackjackEnv
 from torch.optim import Adam
 import os
 
-NUM_EPISODES = 2000  # Reduced since episodes are now longer
+NUM_EPISODES = 1000  # Reduced since episodes are now longer
 CHANGE_EPSILON_EVERY = 5
-EPSILON_START = 0.2  # Reduced from 0.5 for more stable learning
+EPSILON_START = .3  # Reduced from 0.5 for more stable learning
 EPSILON_END = 0.001
 LR = 1e-4
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
@@ -32,7 +32,7 @@ conservative_episodes = 0  # Track overly conservative play
 for episode in range(1, NUM_EPISODES + 1):
     # Standard epsilon decay
     if episode % CHANGE_EPSILON_EVERY == 0:
-        player.epsilon = max(EPSILON_END, player.epsilon * 0.99)  # Slower decay
+        player.epsilon = max(EPSILON_END, player.epsilon * 0.98)  # Slower decay
     
     # Anti-conservative mechanism: if agent is too conservative, increase exploration
     if episode > 100 and episode % 50 == 0:  # Check every 50 episodes after episode 100

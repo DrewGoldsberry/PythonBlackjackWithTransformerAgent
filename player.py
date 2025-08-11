@@ -58,6 +58,7 @@ class Player:
             new_hand.is_split = True
             self.hands.insert(self.active_hand_index + 1, new_hand)
         else:
+            print("Invalid split.")
             hand.has_invalid_split = True  # Mark as invalid split if conditions not met
     def double_down(self):
         hand = self.current_hand()
