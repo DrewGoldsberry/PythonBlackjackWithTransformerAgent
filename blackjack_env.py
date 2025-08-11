@@ -26,17 +26,30 @@ class BlackjackEnv:
             self.deck.discard_to_deck()
             self.deck.shuffle()
 
+        # Mark the start of a new hand for agent players
+        for player in self.players:
+            if isinstance(player, AgentPlayer):
+                player.start_new_hand()
+
         for player in self.players:
             player.reset_for_round()
             bet=0
             if isinstance(player, AgentPlayer):
+                # Record bankroll before bet decision
                 bet = player.decide_bet()
+                # Record bankroll after bet placement
+                player.bankroll_history.append(player.bankroll)
             else:
                 bet = bet_amount
             player.place_bet(bet)  # TODO: Make this configurable
-        if self.players[0].is_finished:
-            self.players[0].bankroll = AGENT_STARTING_BANKROLL
-            self.players[0].is_finished = False
+            
+        # Check if agent player needs to be reset or episode is complete
+        agent_player = None
+        for player in self.players:
+            if isinstance(player, AgentPlayer):
+                agent_player = player
+                break       
+                  
         self.dealer.reset_for_round()
 
         # Initial deal: two cards to each player and dealer
@@ -70,7 +83,7 @@ class BlackjackEnv:
             for i in range(len(player.hands)):
                 player.active_hand_index = i
                 hand = player.current_hand()
-                if hand.has_stood or hand.is_blackjack() or hand.is_busted() or hand.has_doubled:
+                if hand.has_stood or hand.is_blackjack() or hand.is_busted() or hand.has_doubled or hand.has_invalid_split:
                     continue  # Skip if player has already stood
                 looping_without_ending=0       
                 while True:
@@ -103,6 +116,10 @@ class BlackjackEnv:
                             player.split_hand()
                             player.current_hand().cards.append(self.deck.draw())
                             looping_without_ending=0
+                        else:
+                            hand.has_invalid_split = True
+                            break  # Mark as invalids split if conditions not met
+                    
                     if looping_without_ending>5:
                         hand.has_stood = True
                         break
@@ -151,7 +168,11 @@ class BlackjackEnv:
         
         
         if round_over and isinstance(player, AgentPlayer):
-            reward = 0
+            # Increment hands played counter
+            player.increment_hands_played()
+            
+            # Calculate hand-level rewards (smaller magnitude for accumulation)
+            hand_reward = 0
             rules = []
             for reward_binding in REWARDS_BINDINGS:
                 if reward_binding.bool_function(self, player):
@@ -161,24 +182,95 @@ class BlackjackEnv:
                     else:
                         temp_reward+=reward_binding.reward
                     
-                    reward+=temp_reward
+                    hand_reward+=temp_reward
                     rules.append(reward_binding.label + f" (reward: {temp_reward})")
 
             print("")
             for rule in rules:
                 print(rule)
             print("")    
-            print(f"Reward: {reward} Balance: {player.bankroll} Bet: {hand.bet}")
             
-            if player.trajectories:
-                    # We only need to update the last trajectory because in training we apply the rewards to the past trajectories
-                    traj = player.trajectories[-1]
-                    # Already has reward — optionally update or skip
-                    token_seq = None
-                    action_idx = None
-                    if len(traj)==2:
-                        token_seq, action_idx = traj
-                    if len(traj) == 3:
-                        token_seq, action_idx, _ = traj
+            # Apply hand reward only to trajectories from the current hand
+            recent_trajectories = []
+            hand_start_idx = player.current_hand_start_idx
+            
+            for i in range(hand_start_idx, len(player.trajectories)):
+                traj = player.trajectories[i]
+                if len(traj) == 2:  # Action trajectory
+                    token_seq, action_idx = traj
+                    player.trajectories[i] = (token_seq, action_idx, hand_reward)
+                    recent_trajectories.append(i)
+                elif len(traj) == 4:  # Bet trajectory
+                    token_seq, none_placeholder, bet_marker, log_prob_bet = traj
+                    player.trajectories[i] = (token_seq, none_placeholder, bet_marker, log_prob_bet, hand_reward)
+                    recent_trajectories.append(i)
+            
+            # Track accumulated reward for logging only
+            player.accumulated_reward += hand_reward
+            
+            # Complete the hand tracking for bankroll history
+            player.complete_hand()
+            
+            # Apply bankroll growth rewards if we have enough history
+            growth_applied = 0
+            if len(player.hand_trajectory_ranges) >= 2:
+                growth_applied = player.apply_bankroll_growth_rewards(lookback_hands=3)
+                if growth_applied > 0:
+                    growth_reward = player.calculate_bankroll_growth_reward(lookback_hands=3)
+                    print(f"Bankroll Growth Reward: {growth_reward:.3f} applied to {growth_applied} trajectories")
+            
+            print(f"Hand Reward: {hand_reward} Total Accumulated: {player.accumulated_reward:.2f} Balance: {player.bankroll} Bet: {hand.bet}")
+            print(f"Applied reward {hand_reward} to {len(recent_trajectories)} trajectories from current hand (idx {hand_start_idx}+)")
 
-                    player.trajectories[-1] = token_seq, action_idx, reward
+    def check_and_complete_episode(self, player):
+        """Check if episode is complete and apply accumulated rewards if so."""
+        if not isinstance(player, AgentPlayer):
+            return False, None
+            
+        episode_complete, reason = player.is_episode_complete()
+        
+        if episode_complete:
+            bankroll_change = player.bankroll - player.episode_starting_bankroll
+            
+            # Calculate episode outcome bonus/penalty
+            episode_bonus = 0
+            if reason == "target_reached":
+                episode_bonus = 10  # Moderate bonus for reaching target
+                print(f"🎉 TARGET REACHED! Episode bonus: +{episode_bonus}")
+            elif reason == "bankrupt":
+                episode_bonus = -5  # Moderate penalty for bankruptcy
+                print(f"💸 BANKRUPTCY! Episode penalty: {episode_bonus}")
+            elif reason == "high_risk_limit":
+                episode_bonus = -3  # Smaller penalty for high-risk limit
+                print(f"⚠️  HIGH RISK LIMIT! Episode penalty: {episode_bonus}")
+            
+            # Add episode bonus to all trajectories that already have hand rewards
+            bonus_applied_count = 0
+            if episode_bonus != 0:
+                for i in range(len(player.trajectories)):
+                    traj = player.trajectories[i]
+                    if len(traj) == 3:  # Action with hand reward
+                        token_seq, action_idx, hand_reward = traj
+                        new_reward = hand_reward + episode_bonus
+                        player.trajectories[i] = (token_seq, action_idx, new_reward)
+                        bonus_applied_count += 1
+                    elif len(traj) == 5:  # Bet with hand reward
+                        token_seq, none_placeholder, bet_marker, log_prob_bet, hand_reward = traj
+                        new_reward = hand_reward + episode_bonus
+                        player.trajectories[i] = (token_seq, none_placeholder, bet_marker, log_prob_bet, new_reward)
+                        bonus_applied_count += 1
+            
+            print(f"Episode Summary:")
+            print(f"  Hands played: {player.episode_hands_played}")
+            print(f"  High-risk bets: {player.episode_high_risk_bets}")
+            print(f"  Bankroll change: {bankroll_change}")
+            print(f"  Accumulated hand rewards: {player.accumulated_reward:.2f}")
+            print(f"  Episode bonus applied to {bonus_applied_count} actions: {episode_bonus}")
+            print(f"  Epsilon: {player.epsilon:.4f}")
+            
+            # NOTE: Each action now has individual hand reward + episode outcome bonus
+            # This provides both immediate feedback and long-term consequence learning
+            
+            return True, reason
+        
+        return False, None
