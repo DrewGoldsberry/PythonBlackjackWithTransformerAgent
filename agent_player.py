@@ -8,11 +8,12 @@ import torch
 ACTIONS = ["hit", "stand", "double", "split"]
 
 class AgentPlayer(Player):
-    def __init__(self, name, agent:TransformerAgent, epsilon=0.05,is_training=True):
+    def __init__(self, name, agent:TransformerAgent, epsilon=0.0,is_training=True):
         super().__init__(name)
         self.agent = agent
         self.epsilon = epsilon
         self.trajectories = deque([], 256)  # a bit larger for safety
+        self.is_training = is_training
 
     def decide_action(self, dealer_card):
         hand = self.current_hand()
@@ -42,7 +43,7 @@ class AgentPlayer(Player):
         )
 
         # Sample fraction in [0,1], plus log_prob for REINFORCE
-        bet_frac, log_prob_bet = self.agent.sample_bet(token_seq, training=True)
+        bet_frac, log_prob_bet = self.agent.sample_bet(token_seq, training=self.is_training)
 
         # Turn fraction into amount, clamp minimally
         bet_amount = max(1.0, float(bet_frac.item() * max(0.0, self.bankroll)))

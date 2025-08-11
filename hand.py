@@ -53,7 +53,7 @@ class Hand:
        
         for card in self.cards[:2]: # Only consider the first two cards
             if card.is_ace():
-                True
+                return True
         
         return False
     
