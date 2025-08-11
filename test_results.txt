@@ -1,12 +1,12 @@
 Test Results for Trained Blackjack Agent
 ==================================================
 
-Hands Played: 62
-Wins: 22 (35.5%)
-Losses: 35 (56.5%)
-Pushes: 5 (8.1%)
+Hands Played: 95
+Wins: 39 (41.1%)
+Losses: 43 (45.3%)
+Pushes: 13 (13.7%)
 Net Profit/Loss: $-500.00
 Final Bankroll: $0.00
-Total Money Won: $1,137.27
-Total Money Lost: $1,637.27
-Total Bet: $2,831.49
+Total Money Won: $239.23
+Total Money Lost: $739.23
+Total Bet: $1,103.49

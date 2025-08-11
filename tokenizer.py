@@ -31,11 +31,11 @@ def tokenize_state(player_hand, dealer_card, bankroll, bet):
         tokens.append(0)  # padding
 
     # Bucketed bankroll and bet
-    bankroll_bucket = min(int((bankroll / MAX_BANKROLL) * NUM_BUCKETS), NUM_BUCKETS - 1)
-    bet_bucket = min(int((bet / MAX_BANKROLL) * NUM_BUCKETS), NUM_BUCKETS - 1)
+    # bankroll_bucket = min(int((bankroll / MAX_BANKROLL) * NUM_BUCKETS), NUM_BUCKETS - 1)
+    # bet_bucket = min(int((bet / MAX_BANKROLL) * NUM_BUCKETS), NUM_BUCKETS - 1)
 
-    tokens.append(100 + bankroll_bucket)  # Token range: 100–119
-    tokens.append(120 + bet_bucket)       # Token range: 120–139
+    # tokens.append(100 + bankroll_bucket)  # Token range: 100–119
+    # tokens.append(120 + bet_bucket)       # Token range: 120–139
 
     token_tensor = torch.LongTensor(tokens).unsqueeze(0)  # shape: (1, seq_len)
     return token_tensor
