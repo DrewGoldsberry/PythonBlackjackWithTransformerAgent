@@ -16,6 +16,7 @@ class Player:
     def reset_for_round(self):
         self.hands = [Hand()]
         self.active_hand_index = 0
+        self.is_finished = False  # Reset finished flag for new round
 
     def place_bet(self, amount):
         if self.bankroll >= amount:
@@ -23,13 +24,13 @@ class Player:
             self.bankroll -= amount
         else:
             self.current_hand().bet = self.bankroll
-            self.bankroll -= self.bankroll
-            amount = self.bankroll
+            amount = self.bankroll  # Store original bankroll before deduction
+            self.bankroll = 0
 
-        if self.bankroll == amount:
+        if self.bankroll <= 0:  # Fixed condition: check if bankroll is 0 or less
             print(f"{self.name} has run out of money!")
             self.is_finished = True
-        if self.bankroll> AGENT_BANKROLL_TARGET:
+        if self.bankroll >= AGENT_BANKROLL_TARGET:  # Fixed condition: >= instead of >
             print(f"{self.name} has reached the target bankroll of {AGENT_BANKROLL_TARGET}!")
             self.is_finished = True
 
@@ -56,7 +57,9 @@ class Player:
             hand.is_split = True
             new_hand.is_split = True
             self.hands.insert(self.active_hand_index + 1, new_hand)
-
+        else:
+            print("Invalid split.")
+            hand.has_invalid_split = True  # Mark as invalid split if conditions not met
     def double_down(self):
         hand = self.current_hand()
         if self.bankroll >= hand.bet:

@@ -12,6 +12,7 @@ class Hand:
         self.is_winner = False  # Track if this hand is a winner
         self.round_over = False  # Track if the round is over
         self.has_stood = False  # Track if the player has stood
+        self.has_invalid_split = False  # Track if the split was invalid
     def add_card(self, card):
         self.cards.append(card)
 
